@@ -17,9 +17,9 @@ class AuthController extends Controller
     {
         return view('auth.login');
     }
-     public function authenticate(Request $request)
+    public function authenticate(Request $request)
     {
-        
+
         $request->validate([
             'email' => 'required|string|email',
             'password' => 'required|string',
@@ -41,22 +41,23 @@ class AuthController extends Controller
         alert()->error('Login Gagal', 'Email atau password salah. Coba lagi!');
         return back()->withInput($request->only('email'));
     }
-    public function register(){
+    public function register()
+    {
         return view('auth.register');
     }
-    public function registerUser(Request $request)  
+    public function registerUser(Request $request)
     {
-        
+
         // Validasi input
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-        ],[
+        ], [
             'name.required' => 'Nama wajib diisi',
             'name.string' => 'Nama harus berupa string',
             'name.max' => 'Nama maksimal 255 karakter',
-            'email.required' => 'Email wajib diisi',    
+            'email.required' => 'Email wajib diisi',
             'email.string' => 'Email harus berupa string',
             'email.email' => 'Format email tidak valid',
             'email.max' => 'Email maksimal 255 karakter',
@@ -75,8 +76,7 @@ class AuthController extends Controller
         $user->save();
 
         alert()->success('Registrasi Berhasil', 'Register akun anda berhasil. Silakan login!');
-        return redirect('/login');  
-        
+        return redirect('/login');
     }
     public function logout(Request $request)
     {
@@ -137,24 +137,5 @@ class AuthController extends Controller
     public function destroy(string $id)
     {
         //
-    }
-    public function fetchBarang(Request $request) : JsonResponse
-    {
-        
-        $kodeBarang = $request->input('kode_barang');
-        $etalase = Etalase::with('barangs')->where('barang_kode', $kodeBarang)->first();
-
-        if ($etalase) {
-            return response()->json([
-                'success' => true,
-                'data' => $etalase
-            ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'Barang tidak ditemukan'
-            ]);
-        }
-        
     }
 }
