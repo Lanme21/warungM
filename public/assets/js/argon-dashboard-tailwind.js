@@ -87,3 +87,5 @@ function loadStylesheet(FILE_URL) {
 
   document.head.appendChild(dynamicStylesheet);
 }
+
+loadJS(to_build + "assets/js/active-nav-link.js", true);
