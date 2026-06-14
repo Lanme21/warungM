@@ -29,8 +29,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('transaksi', TransaksiController::class);
     Route::resource('detail', TransaksiDetailController::class);
+    Route::get('fetch-barang', [BarangController::class, 'fetchBarang']);
 });
-Route::get('fetch-barang', [AuthController::class, 'fetchBarang']);
 
 Route::middleware('guest')->group(function () {
     Route::get('/', [AuthController::class, 'index']);

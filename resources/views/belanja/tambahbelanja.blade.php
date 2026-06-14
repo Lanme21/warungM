@@ -37,18 +37,57 @@
                                         <input type="text" name="kode_barang" id="kode_barang"
                                             value="{{ old('kode_barang') }}" placeholder="Scan barcode yang tersedia"
                                             class="focus:shadow-primary-outline dark:bg-slate-850 dark:text-white text-sm leading-5.6 ease block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
-                                            list="listlist" />
+                                            list="listlist" autocomplete="off" />
 
                                         <datalist id="listlist">
                                             @foreach ($barang as $item)
-                                                <option value="{{ $item->kode }}"
-                                                    {{ old('kode_barang') == $item->kode ? 'selected' : '' }}>
+                                                <option value="{{ $item->kode }}">
                                                     {{ $item->kode }} => {{ $item->nama }} - {{ $item->satuan }}
                                                 </option>
                                             @endforeach
                                         </datalist>
 
                                         @error('kode_barang')
+                                            <div class="text-red-500 text-sm">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="w-full max-w-full px-3 shrink-0 md:w-6/12 md:flex-0">
+                                    <div class="mb-4">
+                                        <label for="nama"
+                                            class="inline-block mb-2 ml-1 font-bold text-xs text-slate-700 dark:text-white/80">Nama
+                                            Item</label>
+                                        <input type="text" name="nama" id="nama" value="{{ old('nama') }}"
+                                            placeholder="Masukkan nama item"
+                                            class="focus:shadow-primary-outline dark:bg-slate-850 dark:text-white text-sm leading-5.6 ease block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-blue-500 focus:outline-none" />
+                                        @error('nama')
+                                            <div class="text-red-500 text-sm">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="w-full max-w-full px-3 shrink-0 md:w-6/12 md:flex-0">
+                                    <div class="mb-4">
+                                        <label for="satuan"
+                                            class="inline-block mb-2 ml-1 font-bold text-xs text-slate-700 dark:text-white/80">Satuan</label>
+                                        <input type="text" name="satuan" id="satuan" value="{{ old('satuan') }}"
+                                            placeholder="Masukkan satuan item"
+                                            class="focus:shadow-primary-outline dark:bg-slate-850 dark:text-white text-sm leading-5.6 ease block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-blue-500 focus:outline-none" />
+                                        @error('satuan')
+                                            <div class="text-red-500 text-sm">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="w-full max-w-full px-3 shrink-0 md:w-6/12 md:flex-0">
+                                    <div class="mb-4">
+                                        <label for="kategori"
+                                            class="inline-block mb-2 ml-1 font-bold text-xs text-slate-700 dark:text-white/80">Kategori</label>
+                                        <input type="text" name="kategori" id="kategori"
+                                            value="{{ old('kategori') }}" placeholder="Masukkan kategori item"
+                                            class="focus:shadow-primary-outline dark:bg-slate-850 dark:text-white text-sm leading-5.6 ease block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 outline-none transition-all placeholder:text-gray-500 focus:border-blue-500 focus:outline-none" />
+                                        @error('kategori')
                                             <div class="text-red-500 text-sm">{{ $message }}</div>
                                         @enderror
                                     </div>
@@ -95,18 +134,16 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
                     </form>
-
-
                 </div>
             </div>
-        </div>
-        <div class="w-full max-w-full px-3 mt-6 shrink-0 md:w-4/12 md:flex-0 md:mt-0">
-            <div
-                class="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-xl dark:bg-slate-850 dark:shadow-dark-xl rounded-2xl bg-clip-border">
-                <img class="w-full rounded-t-2xl" src={{ asset('assets/img/background-baru.png') }}
-                    alt="profile cover image">
-
+            <div class="w-full max-w-full px-3 mt-6 shrink-0 md:w-4/12 md:flex-0 md:mt-0">
+                <div
+                    class="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-xl dark:bg-slate-850 dark:shadow-dark-xl rounded-2xl bg-clip-border">
+                    <img class="w-full rounded-t-2xl" src="{{ asset('assets/img/background-baru.png') }}"
+                        alt="profile cover image">
+                </div>
             </div>
         </div>
     </div>
@@ -119,16 +156,42 @@
                 const btnScan = document.getElementById('btn-scan');
                 const readerDiv = document.getElementById('reader');
                 const inputKodeBarang = document.getElementById('kode_barang');
+
+                // Element target autofill
+                const inputNama = document.getElementById('nama');
+                const inputSatuan = document.getElementById('satuan');
+                const inputKategori = document.getElementById('kategori');
+
+                // Mengonversi data koleksi Eloquent Laravel menjadi Array Object JavaScript
+                const listBarang = @json($barang);
+
+                // Fungsi untuk melakukan pencarian dan pengisian otomatis
+                function jalankanAutofill() {
+                    const kodeTerpilih = inputKodeBarang.value;
+
+                    // Cari item barang yang kodenya cocok
+                    const barangKetemu = listBarang.find(item => item.kode == kodeTerpilih);
+
+                    if (barangKetemu) {
+                        inputNama.value = barangKetemu.nama ?? '';
+                        inputSatuan.value = barangKetemu.satuan ?? '';
+                        inputKategori.value = barangKetemu.kategori ??
+                            ''; // Pastikan 'kategori' ada pada properti model $barang Anda
+                    }
+                }
+
+                // Dengarkan event 'input' (ketika mengetik/memilih dari datalist) 
+                // dan event 'change' (ketika dipicu oleh scanner)
+                inputKodeBarang.addEventListener('input', jalankanAutofill);
+                inputKodeBarang.addEventListener('change', jalankanAutofill);
+
                 let html5QrcodeScanner = null;
 
                 btnScan.addEventListener('click', function() {
-                    // Tampilkan kotak scanner
                     readerDiv.style.display = 'block';
 
-                    // Jika scanner sudah berjalan, cegah inisialisasi ulang
                     if (html5QrcodeScanner) return;
 
-                    // Inisialisasi scanner
                     html5QrcodeScanner = new Html5QrcodeScanner(
                         "reader", {
                             fps: 10,
@@ -141,36 +204,27 @@
                         false
                     );
 
-                    // Fungsi saat barcode berhasil discan
                     function onScanSuccess(decodedText, decodedResult) {
-                        // 1. Isi inputan kode_barang
                         inputKodeBarang.value = decodedText;
 
-                        // 2. Hentikan scanner dan sembunyikan wadah kamera
                         html5QrcodeScanner.clear().then(() => {
                             readerDiv.style.display = 'none';
                             html5QrcodeScanner = null;
 
-                            // 3. Trigger event change (penting jika Anda menggunakan JS lain 
-                            // yang mendengarkan perubahan pada input ini)
+                            // Memicu event change agar fungsi jalankanAutofill() terpanggil otomatis
                             inputKodeBarang.dispatchEvent(new Event('change'));
 
-                            // 4. Fokuskan otomatis ke input harga beli setelah scan
                             document.querySelector('input[name="harga_beli"]').focus();
                         }).catch(error => {
                             console.error("Gagal menghentikan scanner.", error);
                         });
                     }
 
-                    function onScanFailure(error) {
-                        // Abaikan error per frame
-                    }
+                    function onScanFailure(error) {}
 
                     html5QrcodeScanner.render(onScanSuccess, onScanFailure);
                 });
             });
         </script>
     @endpush
-
-
 </x-layouts>

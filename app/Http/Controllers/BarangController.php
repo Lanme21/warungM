@@ -129,4 +129,23 @@ class BarangController extends Controller
             'data'    => $etalase,
         ], 200);
     }
+
+    public function fetchBarang(Request $request)
+    {
+        $request->validate(['kode_barang' => 'required|string']);
+        $kodeBarang = $request->input('kode_barang');
+        $barang = Barang::find($kodeBarang);
+
+        if ($barang) {
+            return response()->json([
+                'success' => true,
+                'data' => $barang
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Barang tidak ditemukan. Silakan isi nama dan kategori untuk menambahkannya sebagai barang baru.'
+        ], 404);
+    }
 }
