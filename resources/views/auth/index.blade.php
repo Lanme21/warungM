@@ -78,69 +78,57 @@
         <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
         <script>
             document.addEventListener("DOMContentLoaded", function() {
-                const btnScan = document.getElementById('btn-scan');
-                const readerDiv = document.getElementById('reader');
-                const inputBarcode = document.getElementById('scan');
-
-                // Elemen yang akan diupdate datanya
+                // Elemen UI
                 const elNamaBarang = document.getElementById('nama_barang');
                 const elKategoriSatuan = document.getElementById('kategori_satuan');
                 const elHargaBarang = document.getElementById('harga_barang');
+                const inputScan = document.getElementById('scan');
+                const readerDiv = document.getElementById('reader');
+                const btnScan = document.getElementById('btn-scan');
 
                 let html5QrcodeScanner = null;
 
-                // --- 1. FUNGSI UNTUK MENGAMBIL DATA KE DATABASE VIA AJAX ---
+                // FUNGSI UTAMA FETCH
                 function fetchProductData(barcode) {
                     if (!barcode) return;
 
-                    // Beri indikator loading sementara
-                    elNamaBarang.innerText = "Mencari data...";
-                    elKategoriSatuan.innerText = "-";
-                    elHargaBarang.value = "Menghitung...";
+                    // Indikator loading
+                    elNamaBarang.innerText = "Mencari...";
 
                     $.ajax({
-                        url: "/fetch-barang",
+                        url: "/cek-harga", // Pastikan route ini terdaftar
                         method: 'GET',
                         data: {
-                            kode_barang: barcode // PERBAIKAN: Gunakan parameter 'barcode', bukan 'kodeBarang'
+                            kode_barang: barcode
                         },
                         success: function(response) {
-                            if (response && response.data && response.data.barangs) {
-                                $("#nama_barang").text(response.data.barangs['nama'] || '-');
-                                $("#kategori_satuan").text(
-                                    (response.data.barangs['kategori'] || '-') + " / " + (response.data
-                                        .barangs['satuan'] || '-')
-                                );
+                            if (response && response.data) {
+                                const b = response.data; // Akses langsung ke data
+                                console.log(b);
+                                elNamaBarang.innerText = b.nama || "Nama tidak tersedia";
+                                elKategoriSatuan.innerText = (b.kategori || "-") + " / " + (b.satuan ||
+                                    "-");
+                                elHargaBarang.value = b.etalase.harga_jual ? Number(b.etalase
+                                    .harga_jual).toLocaleString(
+                                    'id-ID') : '0';
 
-                                // Kosongkan input scan setelah sukses (opsional, tergantung kebutuhan UX)
-                                $("#scan").val("");
-
-                                // Format Ribuan Harga
-                                let harga = response.data['harga_jual'];
-                                if (harga) {
-                                    // PERBAIKAN: Gunakan toLocaleString untuk format ribuan yang lebih rapi dan aman
-                                    let hargaFormatted = Number(harga).toLocaleString('id-ID');
-                                    $("#harga_barang").val(hargaFormatted);
-                                } else {
-                                    $("#harga_barang").val("0");
-                                }
+                                // Reset input
+                                inputScan.value = "";
                             } else {
-                                $("#nama_barang").text("Data tidak lengkap");
-                                $("#kategori_satuan").text("-");
-                                $("#harga_barang").val("");
+                                elNamaBarang.innerText = "Barang Tidak Ditemukan";
+                                elKategoriSatuan.innerText = "-";
+                                elHargaBarang.value = "0";
                             }
                         },
-                        error: function(xhr, status, error) {
-                            console.error("Error Fetching Data:", error);
-                            $("#nama_barang").text("Barang tidak ditemukan");
-                            $("#kategori_satuan").text("-");
-                            $("#harga_barang").val("");
-                            $("#scan").val(""); // Kosongkan input jika error
+                        error: function() {
+                            elNamaBarang.innerText = "Barang Tidak Ditemukan";
+                            elKategoriSatuan.innerText = "-";
+                            elHargaBarang.value = "0";
                         }
                     });
-                } // PERBAIKAN: Tutup kurung kurawal fungsi fetchProductData di sini
+                }
 
-                // --- 2. AKSI SAAT TOMBOL KAMERA DIKLIK ---
+                // SCANNER KAMERA
                 btnScan.addEventListener('click', function() {
                     readerDiv.style.display = 'block';
                     if (html5QrcodeScanner) return;
@@ -173,15 +161,14 @@
                     });
                 });
 
-                // --- 3. AKSI SAAT KETIK MANUAL DAN TEKAN ENTER DI INPUT BARCODE ---
-                if (inputBarcode) {
-                    inputBarcode.addEventListener('keypress', function(e) {
-                        if (e.key === 'Enter') {
-                            e.preventDefault(); // Mencegah form tersubmit/reload halaman
-                            fetchProductData(this.value);
-                        }
-                    });
-                }
+
+                // ENTER MANUAL
+                inputScan.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        fetchProductData(this.value);
+                    }
+                });
             });
         </script>
     @endpush
