@@ -106,7 +106,7 @@
                                 const b = response.data;
                                 elNamaBarang.innerText = b.nama || "Nama tidak tersedia";
                                 elKategoriSatuan.innerText = (b.kategori || "-") + " / " + (b.satuan ||
-                                "-");
+                                    "-");
                                 const harga = b.etalase ? b.etalase.harga_jual : 0;
                                 elHargaBarang.value = Number(harga).toLocaleString('id-ID');
                                 inputScan.value = "";
