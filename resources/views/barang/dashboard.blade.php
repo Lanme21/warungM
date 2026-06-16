@@ -184,7 +184,7 @@
 
     <!-- cards row 3 -->
 
-    <script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+   
     <script src="https://cdn.datatables.net/2.3.5/js/dataTables.js"></script>
     <script>
         // membuat format Rupiah
@@ -206,57 +206,66 @@
             fetchData();
         });
 
-        function fetchData() {
-            $.ajax({
-                url: "{{ url('/getetalase') }}", // Ganti dengan URL endpoint API Anda
-                method: 'GET',
-                dataType: 'json',
-                success: function(response) {
+           function fetchData() {
+    $.ajax({
+        url: "/getetalase", // Gunakan relative url agar aman dari Mixed Content
+        method: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            $('#data-list').empty(); // Kosongkan tbody
 
-                    $('#data-list').empty(); // Kosongkan tbody sebelum menambahkan data baru
+            // Trik hitung data: Jika Array pakai .length, jika Object pakai Object.keys().length
+            var dataLength = Array.isArray(response.data) 
+                ? response.data.length 
+                : Object.keys(response.data).length;
 
-                    if (response.success && response.data.length > 0) {
+            if (response.success && dataLength > 0) {
+                
+                $.each(response.data, function(index, barang) {
+                    var row = '<tr>' +
+                        '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
+                        '<h6 class="mb-0 text-sm leading-normal dark:text-white">' + barang.barang_kode + '</h6>' +
+                        '</td>' +
+                        '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
+                        barang.barangs.nama +
+                        '</td>' +
+                        '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
+                        formatRupiah(barang.harga_jual) +
+                        '</td>' +
+                        '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
+                        barang.barangs.satuan +
+                        '</td>' +
+                        '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
+                        barang.barangs.kategori +
+                        '</td>' +
+                        '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
+                        barang.stok +
+                        '</td>' +
+                        '</tr>';
+                    
+                    // MEMPERBAIKI TYPO: Hapus ".reload" di ujung append
+                    $('#data-list').append(row); 
+                });
 
-
-                        $.each(response.data, function(index, barang) {
-                            var row = '<tr>' +
-                                '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
-                                '<h6 class="mb-0 text-sm leading-normal dark:text-white">' + barang
-                                .barang_kode + '</h6>' +
-                                '</td>' +
-                                '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
-                                barang.barangs.nama +
-                                '</td>' +
-                                '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
-                                formatRupiah(barang.harga_jual) +
-                                '</td>' +
-                                '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
-                                barang.barangs.satuan +
-                                '</td>' +
-                                '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
-                                barang.barangs.kategori +
-                                '</td>' +
-                                '<td class="p-2 align-middle text-center bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">' +
-                                barang.stok +
-                                '</td>' +
-                                '</tr>';
-                            $('#data-list').append(row).reload;
-                        });
-                        new DataTable('#example', {
-                            paging: true,
-                            scrollCollapse: true,
-                            scrollY: '50vh'
-                        });
-                    } else {
-                        var row = '<tr><td colspan="6" class="text-center">No data available</td></tr>';
-                        $('#data-list').append(row);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching data:', error);
+                // Inisialisasi DataTable setelah semua looping selesai
+                if (!$.fn.DataTable.isDataTable('#example')) {
+                    new DataTable('#example', {
+                        paging: true,
+                        scrollCollapse: true,
+                        scrollY: '50vh'
+                    });
                 }
-            });
 
+            } else {
+                var row = '<tr><td colspan="6" class="text-center">No data available</td></tr>';
+                $('#data-list').append(row);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching data:', error);
+            console.error('Detail Respon:', xhr.responseText);
         }
+    });
+}
     </script>
 </x-layouts>

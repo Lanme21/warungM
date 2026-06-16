@@ -20,6 +20,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Paksa semua generasi URL (asset, url, route) menggunakan HTTPS
+        if (config('app.env') !== 'local') {
+            URL::forceScheme('https');
+        }
         Blade::directive('rupiah', function ($expression) {
             // Fungsi number_format(angka, desimal, pemisah_desimal, pemisah_ribuan)
             // number_format($expression, 0, ',', '.') akan menghasilkan format 1.500.000
