@@ -59,7 +59,7 @@
                                         <td
                                             class="p-2 align-middle bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">
                                             <h6 class="mb-0 text-sm leading-normal dark:text-white">
-                                                {{ $belanja->barang->nama }}</h6>
+                                                {{ $belanja->barang->nama}}</h6>
                                         </td>
                                         <td
                                             class="p-2 align-middle bg-transparent border-b dark:border-white/40 whitespace-nowrap shadow-transparent">
