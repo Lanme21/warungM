@@ -152,16 +152,19 @@ class BarangController extends Controller
     {
         $request->validate(['kode_barang' => 'required|string']);
 
-        // Sesuaikan dengan nama kolom primary key Anda (gunakan 'kode' jika bukan 'id')
+        // Mengambil data barang beserta relasi etalase
         $barang = Barang::with('etalase')->where('kode', $request->kode_barang)->first();
 
         if ($barang) {
             return response()->json([
                 'success' => true,
-                'data' => $barang // Mengirim objek barang langsung
+                'data' => $barang
             ]);
         }
 
-        return response()->json(['success' => false], 404);
+        return response()->json([
+            'success' => false,
+            'message' => 'Barang tidak ditemukan. Silakan isi nama dan kategori untuk menambahkannya sebagai barang baru.'
+        ], 404);
     }
 }

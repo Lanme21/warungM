@@ -78,7 +78,6 @@
         <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
         <script>
             document.addEventListener("DOMContentLoaded", function() {
-                // Elemen UI
                 const elNamaBarang = document.getElementById('nama_barang');
                 const elKategoriSatuan = document.getElementById('kategori_satuan');
                 const elHargaBarang = document.getElementById('harga_barang');
@@ -88,36 +87,29 @@
 
                 let html5QrcodeScanner = null;
 
-                // FUNGSI UTAMA FETCH
                 function fetchProductData(barcode) {
                     if (!barcode) return;
 
-                    // Indikator loading
+                    // Pastikan barcode dalam bentuk string murni dan bersih
+                    const cleanBarcode = barcode.trim();
+
                     elNamaBarang.innerText = "Mencari...";
 
                     $.ajax({
-                        url: "/cek-harga", // Pastikan route ini terdaftar
+                        url: "/cek-harga",
                         method: 'GET',
                         data: {
-                            kode_barang: barcode
+                            kode_barang: cleanBarcode
                         },
                         success: function(response) {
                             if (response && response.data) {
-                                const b = response.data; // Akses langsung ke data
-                                console.log(b);
+                                const b = response.data;
                                 elNamaBarang.innerText = b.nama || "Nama tidak tersedia";
                                 elKategoriSatuan.innerText = (b.kategori || "-") + " / " + (b.satuan ||
                                     "-");
-                                elHargaBarang.value = b.etalase.harga_jual ? Number(b.etalase
-                                    .harga_jual).toLocaleString(
-                                    'id-ID') : '0';
-
-                                // Reset input
+                                const harga = b.etalase ? b.etalase.harga_jual : 0;
+                                elHargaBarang.value = Number(harga).toLocaleString('id-ID');
                                 inputScan.value = "";
-                            } else {
-                                elNamaBarang.innerText = "Barang Tidak Ditemukan";
-                                elKategoriSatuan.innerText = "-";
-                                elHargaBarang.value = "0";
                             }
                         },
                         error: function() {
@@ -128,41 +120,46 @@
                     });
                 }
 
-                // SCANNER KAMERA
                 btnScan.addEventListener('click', function() {
                     readerDiv.style.display = 'block';
-                    if (html5QrcodeScanner) return;
 
-                    html5QrcodeScanner = new Html5QrcodeScanner(
-                        "reader", {
-                            fps: 10,
-                            qrbox: {
-                                width: 250,
-                                height: 250
-                            },
-                            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
-                        }, false
-                    );
+                    if (!html5QrcodeScanner) {
+                        html5QrcodeScanner = new Html5Qrcode("reader");
+                    }
 
-                    html5QrcodeScanner.render((decodedText) => {
-                        // Isi input text
-                        if (inputBarcode) inputBarcode.value = decodedText;
+                    // Konfigurasi khusus: Memaksa membaca EAN-13
+                    const config = {
+                        fps: 10,
+                        qrbox: 250,
+                        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+                        formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13]
+                    };
 
-                        // Panggil aksi Fetch Data
-                        fetchProductData(decodedText);
+                    html5QrcodeScanner.start({
+                            facingMode: "environment"
+                        },
+                        config,
+                        (decodedText) => {
+                            // Tambahkan delay kecil untuk memastikan sistem menangkap seluruh digit
+                            setTimeout(() => {
+                                inputScan.value = decodedText;
+                                fetchProductData(decodedText);
 
-                        // Hentikan kamera setelah berhasil scan
-                        html5QrcodeScanner.clear().then(() => {
-                            readerDiv.style.display = 'none';
-                            html5QrcodeScanner = null;
-                        });
-                    }, (error) => {
-                        // Abaikan error per frame
+                                html5QrcodeScanner.stop().then(() => {
+                                    readerDiv.style.display = 'none';
+                                }).catch((err) => {
+                                    console.error("Gagal menghentikan scanner", err);
+                                });
+                            }, 200);
+                        },
+                        (errorMessage) => {
+                            // Abaikan error per frame
+                        }
+                    ).catch((err) => {
+                        alert("Tidak dapat mengakses kamera: " + err);
                     });
                 });
 
-
-                // ENTER MANUAL
                 inputScan.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
                         e.preventDefault();

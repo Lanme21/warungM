@@ -21,7 +21,6 @@
                     left: 0;
                     top: 0;
                     width: 58mm;
-                    /* Sesuaikan dengan lebar kertas thermal */
                     margin: 0;
                     padding: 0;
                     font-family: 'Courier New', Courier, monospace;
@@ -118,7 +117,7 @@
                                         class="px-6 py-3 text-sm font-bold text-left uppercase whitespace-nowrap text-slate-400">
                                         Nama Item</th>
                                     <th
-                                        class="px-6 py-3 text-sm font-bold text-left uppercase whitespace-nowrap text-slate-400">
+                                        class="px-6 py-3 text-sm font-bold text-center uppercase whitespace-nowrap text-slate-400">
                                         Jumlah</th>
                                     <th
                                         class="px-6 py-3 text-sm font-bold text-center uppercase whitespace-nowrap text-slate-400">
@@ -159,7 +158,7 @@
                         <div class="p-6 border-t border-solid border-black/12.5 rounded-b-2xl">
                             <div class="flex items-center justify-end gap-4">
                                 <a href="{{ url('/clearcart') }}" style="background-color: #b81414;"
-                                    class="px-8 py-2 text-sm font-bold text-white transition-all  rounded-lg shadow-md ">Kosongkan</a>
+                                    class="px-8 py-2 text-sm font-bold text-white transition-all rounded-lg shadow-md">Kosongkan</a>
                                 <button type="submit"
                                     class="px-8 py-2 text-sm font-bold text-white transition-all bg-blue-500 rounded-lg shadow-md hover:bg-blue-600">Check
                                     out</button>
@@ -205,7 +204,7 @@
              * ========================================== */
             $(document).ready(function() {
                 // 1. Inisialisasi DataTables
-                new DataTable("#example", {
+                let table = new DataTable("#example", {
                     info: false,
                     search: false,
                     paging: false,
@@ -213,15 +212,15 @@
                     scrollY: '50vh'
                 });
 
-                // 2. Fetch Keranjang Saat Load
-                fetchData();
-
-                // 3. Setup CSRF Token AJAX Secara Global
+                // Setup CSRF Token AJAX Secara Global (Pastikan Anda memiliki meta tag csrf-token di layout utama)
                 $.ajaxSetup({
                     headers: {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     }
                 });
+
+                // 2. Fetch Keranjang Saat Load
+                fetchData();
 
                 // ================= SCANNER QR =================
                 let html5QrcodeScanner = null;
@@ -256,38 +255,65 @@
                         cariBarang($(this).val());
                     }
                 }).on('change', function() {
-                    cariBarang($(this).val()); // Aktif saat scanner mengisi nilai
+                    cariBarang($(this).val());
                 });
 
                 function cariBarang(kodeBarang) {
                     if (!kodeBarang) return;
-                    $.get("/fetch-barang", {
+                    $.get("/cek-harga", {
                             kode_barang: kodeBarang
                         })
                         .done(function(response) {
-                            $("#cart_barang").val(response.data.barangs.nama);
-                            $("#cart_satuan").val(response.data.barangs.kategori + " / " + response.data.barangs
-                                .satuan);
-                            $("#cart_jumlah").val(1).attr('max', response.data.stok);
-                            $("#cart_harga").val(formatRupiah(response.data.harga_jual));
-                            simpanKeKeranjang();
+                            console.log(response); // Cek struktur objek di console log browser
+
+                            // VALIDASI: Pastikan response sukses dan objek 'barang' dari relasi itu ada
+                            if (response.success && response.data) {
+
+                                // 1. Ambil nama dari relasi barang (response.data.nama)
+                                $("#cart_barang").val(response.data.nama);
+
+                                // 2. Ambil kategori dan satuan dari relasi barang
+                                $("#cart_satuan").val(response.data.kategori + " / " + response.data
+                                    .satuan);
+
+                                // 3. Stok dan Harga Jual diambil dari tabel etalase langsung
+                                $("#cart_jumlah").val(1).attr('max', response.data.stok);
+                                $("#cart_harga").val(formatRupiah(response.data.etalase.harga_jual));
+
+                                // Jalankan fungsi simpan
+                                simpanKeKeranjang();
+
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Oops...',
+                                    text: 'Data master barang tidak ditemukan untuk kode ini!'
+                                });
+                                $('#cart_kode').val('').focus();
+                            }
                         })
                         .fail(function(xhr) {
                             console.error(xhr);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: 'Barcode tidak terdaftar atau terjadi kesalahan server.'
+                            });
                             $('#cart_kode').val('').focus();
                         });
                 }
 
-                // ================= UPDATE HARGA =================
-                $("#cart_jumlah").on('change', function() {
-                    let jumlah = $(this).val();
+                // ================= UPDATE HARGA INPUT FORM =================
+                $("#cart_jumlah").on('change keyup', function() {
+                    let jumlah = $(this).val() || 1;
                     let kodeBarang = $("#cart_kode").val();
                     if (kodeBarang) {
                         $.get("/fetch-barang", {
                                 kode_barang: kodeBarang
                             })
                             .done(function(response) {
-                                $("#cart_harga").val(formatRupiah(response.data.harga_jual * jumlah));
+                                $("#cart_harga").val(formatRupiah(response.data.etalase.harga_jual *
+                                    jumlah));
                             });
                     }
                 });
@@ -297,6 +323,7 @@
                     if ($("#cart_kode").val() === "") return alert("Kode barang tidak boleh kosong");
 
                     let formData = {
+                        _token: $('input[name="_token"]').val(),
                         cart_kode: $("#cart_kode").val(),
                         cart_barang: $("#cart_barang").val(),
                         cart_satuan: $("#cart_satuan").val(),
@@ -322,57 +349,114 @@
                 function fetchData() {
                     $.get("{{ url('/fetchcartitems') }}")
                         .done(function(response) {
-                            $('#fetchcartitem').empty();
-                            $('#print-cart-items').empty(); // Kosongkan area struk sebelum diisi ulang
+                            table.clear(); // Bersihkan instansi DataTable
+                            $('#print-cart-items').empty();
 
                             if (response.success && response.data.length > 0) {
                                 $.each(response.data, function(index, cart) {
-                                    // Masukkan ke tabel utama
-                                    $('#fetchcartitem').append(`
-                        <tr>
-                            <td class="p-2 text-sm text-center align-middle border-b"><h6 class="mb-0 dark:text-white">${cart.cart_kode}</h6></td>
-                            <td class="p-2 text-sm text-center align-middle border-b">${cart.cart_barang}</td>
-                            <td class="p-2 text-sm text-center align-middle border-b"><input type="number" value="${cart.cart_jumlah}" class="w-16 text-center border rounded"/></td>
-                            <td class="p-2 text-sm text-center align-middle border-b">${cart.cart_satuan}</td>
-                            <td class="p-2 text-sm text-center align-middle border-b">${formatRupiah(cart.cart_harga)}</td>
-                            <td class="p-2 text-sm text-center align-middle border-b"></td>
-                        </tr>
-                    `);
+                                    // Masukkan data terstruktur ke DataTable API (5 kolom pas)
+                                    table.row.add([
+                                        `<div class="text-left">
+                                            <h6 class="mb-0 text-sm font-semibold dark:text-white">${cart.cart_barang}</h6>
+                                            <small class="text-slate-400 font-normal">${cart.cart_kode}</small>
+                                        </div>`,
+                                        `<div class="text-center">
+                                            <input type="number" min="1" value="${cart.cart_jumlah}" data-kode="${cart.cart_kode}" 
+                                                class="w-16 text-center border rounded update-qty-input dark:bg-slate-800 dark:text-white" />
+                                        </div>`,
+                                        `<div class="text-center text-sm">${cart.cart_satuan}</div>`,
+                                        `<div class="text-center text-sm font-semibold">${formatRupiah(cart.cart_harga)}</div>`,
+                                        `<div class="text-center">
+                                            <button type="button" data-kode="${cart.cart_kode}" 
+                                                class="px-3 py-1 text-xs font-bold text-white bg-red-600 rounded-lg btn-hapus-item hover:bg-red-700">
+                                                Hapus
+                                            </button>
+                                        </div>`
+                                    ]);
 
                                     // Masukkan ke area cetak struk
                                     $('#print-cart-items').append(`
-                        <tr>
-                            <td style="font-size: 12px; text-align: left; padding: 2px 0;">${cart.cart_barang}</td>
-                            <td style="font-size: 12px; text-align: center; padding: 2px 0;">x${cart.cart_jumlah}</td>
-                            <td style="font-size: 12px; text-align: right; padding: 2px 0;">${formatRupiah(cart.cart_harga)}</td>
-                        </tr>
-                    `);
+                                        <tr>
+                                            <td style="font-size: 11px; text-align: left; padding: 2px 0;">${cart.cart_barang}</td>
+                                            <td style="font-size: 11px; text-align: center; padding: 2px 0;">x${cart.cart_jumlah}</td>
+                                            <td style="font-size: 11px; text-align: right; padding: 2px 0;">${formatRupiah(cart.cart_harga)}</td>
+                                        </tr>
+                                    `);
                                 });
+
+                                table.draw(false); // Render ulang tabel
                                 $('#total_bayar').val(formatRupiah(response.total));
-                                $('#print-total-harga').text(formatRupiah(response.total)); // Update total di struk
+                                $('#print-total-harga').text('Rp ' + formatRupiah(response.total));
                             } else {
-                                $('#fetchcartitem').append(
-                                    '<tr><td colspan="6" class="p-4 text-center">Data kosong</td></tr>');
+                                table.draw(false);
                                 $('#print-cart-items').append(
-                                    '<tr><td colspan="3" style="text-align: center;">Kosong</td></tr>');
+                                    '<tr><td colspan="3" style="text-align: center; padding: 5px 0;">Kosong</td></tr>'
+                                );
                                 $('#total_bayar').val(0);
-                                $('#print-total-harga').text('0');
+                                $('#print-total-harga').text('Rp 0');
                             }
-                            $('#nominal_bayar').val('').trigger('keyup'); // Reset input bayar
+                            $('#nominal_bayar').val('').trigger('keyup');
                         });
                 }
+
+                // ================= EVENT LISTENER DI DALAM TABEL (DYNAMIC ELEMENTS) =================
+
+                // 1. Aksi Ubah Qty Langsung Dari Tabel
+                $(document).on('change', '.update-qty-input', function() {
+                    let kode = $(this).data('kode');
+                    let qtybaru = $(this).val();
+                    if (qtybaru < 1) return fetchData();
+
+                    $.post("{{ url('/updatecartqty') }}", {
+                            cart_kode: kode,
+                            cart_jumlah: qtybaru
+                        })
+                        .done(function() {
+                            fetchData();
+                        })
+                        .fail(function() {
+                            alert("Gagal memperbarui jumlah item");
+                        });
+                });
+
+                // 2. Aksi Hapus Satuan Barang
+                $(document).on('click', '.btn-hapus-item', function() {
+                    let kode = $(this).data('kode');
+                    Swal.fire({
+                        title: "Hapus Item?",
+                        text: "Item ini akan dikeluarkan dari daftar belanja.",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#3085d6",
+                        cancelButtonColor: "#d33",
+                        confirmButtonText: "Ya, Hapus!"
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $.post("{{ url('/deletecartitem') }}", {
+                                    cart_kode: kode
+                                })
+                                .done(function() {
+                                    fetchData();
+                                });
+                        }
+                    });
+                });
+
                 // ================= HITUNG KEMBALIAN =================
                 $('#nominal_bayar').on('keyup', function() {
-                    $(this).val(inputRupiah($(this).val())); // Format input langsung
+                    $(this).val(inputRupiah($(this).val()));
 
                     let bayar_murni = parseInt(getAngkaMurni($(this).val())) || 0;
                     let total_murni = parseInt(getAngkaMurni($("#total_bayar").val())) || 0;
 
                     let kembalian = bayar_murni - total_murni;
-                    $("#total_kembalian").val(kembalian > 0 ? formatRupiah(kembalian) : 0);
+                    $("#total_kembalian").val(kembalian >= 0 ? formatRupiah(kembalian) : 0);
+
+                    // Update teks struk secara real-time
+                    $('#print-bayar').text($(this).val() || 'Rp 0');
+                    $('#print-kembalian').text(kembalian >= 0 ? 'Rp ' + formatRupiah(kembalian) : 'Rp 0');
                 });
 
-                // ================= CHECKOUT =================
                 // ================= CHECKOUT =================
                 $("#checkoutForm").on('submit', function(e) {
                     e.preventDefault();
@@ -382,28 +466,25 @@
                     let kembalian = bayar - total;
 
                     if (kembalian >= 0 && bayar > 0) {
-                        // 1. Tampilkan area struk agar bisa masuk ke DOM untuk dicetak
+                        // 1. Tampilkan area struk ke DOM layar sebelum dicetak
                         $('#struk-print-area').removeClass('hidden');
 
-                        // 2. Beri jeda sedikit agar browser merender struk, lalu trigger Print
+                        // 2. Beri jeda minim agar browser siap merender, lalu trigger Print
                         setTimeout(function() {
                             window.print();
                         }, 300);
 
-                        // 3. Tangkap event ketika dialog print ditutup (baik diprint maupun di-cancel)
+                        // 3. Setelah dialog cetak selesai dijalankan kasir
                         window.onafterprint = function() {
-                            // Sembunyikan struk kembali
                             $('#struk-print-area').addClass('hidden');
+                            window.onafterprint = null; // Unbind handler
 
-                            // Hapus event listener agar tidak terpicu berkali-kali di masa depan
-                            window.onafterprint = null;
-
-                            // 4. Setelah print selesai, kirim data ke database via AJAX POST
+                            // 4. Push data transaksi final ke DB via POST
                             $.post("{{ url('/checkoutcart') }}", {
-                                    susuk: kembalian
+                                    susuk: kembalian,
+                                    nominal_bayar: bayar
                                 })
                                 .done(function(response) {
-                                    // Tampilkan pesan sukses dengan SweetAlert setelah berhasil masuk database
                                     Swal.fire({
                                         title: "Transaksi Berhasil!",
                                         text: "Kembalian: Rp " + formatRupiah(kembalian),
@@ -437,29 +518,40 @@
         </script>
     @endpush
 
-
-
-
     <div id="struk-print-area" class="hidden">
-        <div class="struk-container">
-            <div class="text-center">
-                <h3 style="margin: 0; font-size: 16px;">NAMA TOKO ANDA</h3>
-                <p style="margin: 0;">Jl. Alamat Toko No. 123</p>
-                <p style="margin: 0;">Telp: 08123456789</p>
-                <p>--------------------------------</p>
+        <div class="struk-container" style="padding: 5px;">
+            <div class="text-center" style="text-align: center;">
+                <h3 style="margin: 0; font-size: 14px; font-weight: bold;">NAMA TOKO ANDA</h3>
+                <p style="margin: 0; font-size: 10px;">Jl. Alamat Toko No. 123</p>
+                <p style="margin: 0; font-size: 10px;">Telp: 08123456789</p>
+                <p style="margin: 2px 0;">--------------------------------</p>
             </div>
 
             <table style="width: 100%; border-collapse: collapse;">
                 <tbody id="print-cart-items"></tbody>
             </table>
 
-            <div class="text-center" style="margin-top: 10px;">
-                <p>--------------------------------</p>
-                <p style="margin: 0; font-size: 14px;"><strong>TOTAL: <span id="print-total-harga">Rp
-                            0</span></strong></p>
-                <p>--------------------------------</p>
-                <p style="margin-top: 10px;">Terima Kasih</p>
-                <p>Barang yang sudah dibeli<br>tidak dapat ditukar</p>
+            <div style="margin-top: 5px;">
+                <p style="margin: 2px 0;">--------------------------------</p>
+                <table style="width: 100%; font-size: 11px;">
+                    <tr>
+                        <td style="text-align: left; font-weight: bold;">TOTAL:</td>
+                        <td id="print-total-harga" style="text-align: right; font-weight: bold;">Rp 0</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left;">BAYAR:</td>
+                        <td id="print-bayar" style="text-align: right;">Rp 0</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left;">KEMBALI:</td>
+                        <td id="print-kembalian" style="text-align: right;">Rp 0</td>
+                    </tr>
+                </table>
+                <p style="margin: 2px 0;">--------------------------------</p>
+                <div class="text-center" style="text-align: center; font-size: 10px; margin-top: 5px;">
+                    <p style="margin: 0;">Terima Kasih</p>
+                    <p style="margin: 0;">Barang yang sudah dibeli<br>tidak dapat ditukar</p>
+                </div>
             </div>
         </div>
     </div>

@@ -150,38 +150,28 @@
 
     @push('scripts')
         <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-
         <script>
             document.addEventListener("DOMContentLoaded", function() {
                 const btnScan = document.getElementById('btn-scan');
                 const readerDiv = document.getElementById('reader');
                 const inputKodeBarang = document.getElementById('kode_barang');
-
-                // Element target autofill
                 const inputNama = document.getElementById('nama');
                 const inputSatuan = document.getElementById('satuan');
                 const inputKategori = document.getElementById('kategori');
 
-                // Mengonversi data koleksi Eloquent Laravel menjadi Array Object JavaScript
                 const listBarang = @json($barang);
 
-                // Fungsi untuk melakukan pencarian dan pengisian otomatis
                 function jalankanAutofill() {
-                    const kodeTerpilih = inputKodeBarang.value;
-
-                    // Cari item barang yang kodenya cocok
-                    const barangKetemu = listBarang.find(item => item.kode == kodeTerpilih);
+                    const kodeTerpilih = inputKodeBarang.value.trim();
+                    const barangKetemu = listBarang.find(item => String(item.kode) === kodeTerpilih);
 
                     if (barangKetemu) {
                         inputNama.value = barangKetemu.nama ?? '';
                         inputSatuan.value = barangKetemu.satuan ?? '';
-                        inputKategori.value = barangKetemu.kategori ??
-                            ''; // Pastikan 'kategori' ada pada properti model $barang Anda
+                        inputKategori.value = barangKetemu.kategori ?? '';
                     }
                 }
 
-                // Dengarkan event 'input' (ketika mengetik/memilih dari datalist) 
-                // dan event 'change' (ketika dipicu oleh scanner)
                 inputKodeBarang.addEventListener('input', jalankanAutofill);
                 inputKodeBarang.addEventListener('change', jalankanAutofill);
 
@@ -199,28 +189,49 @@
                                 width: 250,
                                 height: 250
                             },
-                            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+                            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+                            formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13],
+                            experimentalFeatures: {
+                                useBarCodeDetectorIfSupported: true
+                            }
                         },
                         false
                     );
 
                     function onScanSuccess(decodedText, decodedResult) {
-                        inputKodeBarang.value = decodedText;
+                        // VALIDASI KETAT:
+                        // 1. Pastikan panjang tepat 13 digit (standar EAN-13)
+                        // 2. Pastikan hanya angka
+                        const cleanCode = decodedText.trim();
+                        const isNumeric = /^\d+$/.test(cleanCode);
 
-                        html5QrcodeScanner.clear().then(() => {
-                            readerDiv.style.display = 'none';
-                            html5QrcodeScanner = null;
+                        if (cleanCode.length === 13 && isNumeric) {
 
-                            // Memicu event change agar fungsi jalankanAutofill() terpanggil otomatis
-                            inputKodeBarang.dispatchEvent(new Event('change'));
+                            setTimeout(() => {
+                                inputKodeBarang.value = cleanCode;
+                                inputKodeBarang.dispatchEvent(new Event('change', {
+                                    bubbles: true
+                                }));
 
-                            document.querySelector('input[name="harga_beli"]').focus();
-                        }).catch(error => {
-                            console.error("Gagal menghentikan scanner.", error);
-                        });
+                                html5QrcodeScanner.clear().then(() => {
+                                    readerDiv.style.display = 'none';
+                                    html5QrcodeScanner = null;
+                                    document.querySelector('input[name="harga_beli"]').focus();
+                                }).catch(error => {
+                                    console.error("Gagal menghentikan scanner.", error);
+                                });
+                            }, 150);
+
+                        } else {
+                            // Jika hasil scan salah (misal: panjang bukan 13), 
+                            // abaikan dan biarkan scanner terus mencari hasil yang benar
+                            console.warn("Scan tidak valid, mencoba lagi...", cleanCode);
+                        }
                     }
 
-                    function onScanFailure(error) {}
+                    function onScanFailure(error) {
+                        // Abaikan error agar tidak memenuhi console
+                    }
 
                     html5QrcodeScanner.render(onScanSuccess, onScanFailure);
                 });
